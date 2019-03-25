@@ -27,3 +27,6 @@
 .DS_Store
 *.pdf
 *.o
+*h5
+/scratch/ruian/autoencoder_lartpc/uboone/log/*
+/scratch/ruian/autoencoder_lartpc/uboone/trainweights/*
