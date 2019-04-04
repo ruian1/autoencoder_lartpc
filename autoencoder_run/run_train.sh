@@ -13,4 +13,3 @@ source /scratch/ruian/autoencoder_lartpc/uboone/LArCV/configure.sh
 cd /scratch/ruian/autoencoder_lartpc/uboone/
 
 nohup python train_autoencoder_2.py autoencoder_2.cfg > train.txt &
-
