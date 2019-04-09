@@ -4,32 +4,37 @@ import ROOT
 from larcv import larcv
 import numpy as np
 import tensorflow as tf
-#import matplotlib.pyplot as plt
 
 BASE_PATH = os.path.realpath(__file__)
 BASE_PATH = os.path.dirname(BASE_PATH)
 sys.path.insert(0,BASE_PATH)
-sys.path.insert(0,os.path.join(BASE_PATH,".."))
+sys.path.insert(0,os.path.join(BASE_PATH,"../.."))
 
 from lib.config import config_loader
-from lib.rootdata_maskrcnn import ROOTData
+from lib.rootdata_autoencoder import ROOTData
 
-#for MCNN
+#for Autoencoder
 #ROOT_DIR = os.path.abspath("../../../")
-ROOT_DIR = os.path.abspath("/usr/local/share/dllee_unified/Mask_RCNN")
+ROOT_DIR = os.path.abspath("/usr/local/share/dllee_unified/autoencoder_lartpc")
 sys.path.append(ROOT_DIR)  #To find local version of the library
 
-from mrcnn import utils
-from mrcnn import visualize
-from mrcnn.visualize import display_images
-from mrcnn.model import log
-from mrcnn.config import Config
-import mrcnn.model as modellib
+from net import autoencoder
+from keras.layers import Input, Dense, advanced_activations, Conv2D, MaxPooling2D, UpSampling2D
+from keras.models import Model
+from keras import backend as K
+from keras.layers.advanced_activations import PReLU
+from keras import callbacks
 
-BASE_PATH = os.path.realpath(__file__)
-BASE_PATH = os.path.dirname(BASE_PATH)
-sys.path.insert(0,BASE_PATH)
-sys.path.insert(0,os.path.join(BASE_PATH,".."))
+input_img = Input(shape=(512,512,1))
+AutoEncoder, Encoder=autoencoder.build(input_img, layers_num=5, drop_out=0.0, verbose=1)
+
+from keras.callbacks import TensorBoard
+import keras.backend as K
+
+#BASE_PATH = os.path.realpath(__file__)
+#BASE_PATH = os.path.dirname(BASE_PATH)
+#sys.path.insert(0,BASE_PATH)
+#sys.path.insert(0,os.path.join(BASE_PATH,".."))
 
 larcv.LArbysLoader()
 
@@ -47,45 +52,27 @@ def image_modify (img, cfg):
     
     return img_arr
 
-from MCNN_uboone import UbooneConfig
-class InferenceConfig(UbooneConfig):
-    #Run detection on one image at a time
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1
-    #DETECTION_MAX_INSTANCES=10
-    #RPN_ANCHOR_RATIOS = [0.125,0.5,1,2,4]
-    DETECTION_MIN_CONFIDENCE = 0.6
-
-def bb_too_small(bb):
-    if ((bb[2]-bb[0]<10) and (bb[3]-bb[1])<10):
-        return True
-    else:
-        return False
-
-def merge_bbs(bbs):
-    b=min([bb[0] for bb in bbs])
-    t=max([bb[2] for bb in bbs])
-    l=min([bb[1] for bb in bbs])
-    r=max([bb[3] for bb in bbs])
-    return [b,l,t,r]
-
-def IOU(bbs_t, bbs_r):
-    bbs_t=merge_bbs(bbs_t)
-    bbs_r=merge_bbs(bbs_r)
-    tot_b=min(bbs_t[0], bbs_r[0])
-    tot_t=max(bbs_t[2], bbs_r[2])
-    tot_l=min(bbs_t[1], bbs_r[1])
-    tot_r=max(bbs_t[3], bbs_r[3])
-
-    int_b=max(bbs_t[0], bbs_r[0])
-    int_t=min(bbs_t[2], bbs_r[2])
-    int_l=max(bbs_t[1], bbs_r[1])
-    int_r=min(bbs_t[3], bbs_r[3])
+def calc_loss(img1, img2):
+    img1=img1.reshape(512**2,)
+    img2=img2.reshape(512**2,)
     
-    tot_area=(tot_r-tot_l)*(tot_t-tot_b)
-    int_area=(int_r-int_l)*(int_t-int_b)
+    diff=img1-img2
+    
+    pos_loc=img1>0.0
+    neg_loc=img1<=0.0
 
-    return(int_area)/(tot_area)
+
+    pos_sum=0
+    neg_sum=0
+
+    if(sum(pos_loc)):
+        pos_sum=np.sum(pos_loc*((img1-img2)**2))*(1./np.sum(pos_loc))
+    if(sum(neg_loc)):
+        neg_sum=np.sum(neg_loc*((img1-img2)**2))*(1./np.sum(neg_loc))
+    
+    loss=pos_sum + neg_sum
+    
+    return loss
 
 def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
 
@@ -97,35 +84,18 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
     rd = ROOTData()
 
     NUM = int(os.path.basename(VTX_FILE).split(".")[0].split("_")[-1])
-    FOUT = os.path.join(OUT_DIR,"maskrcnn_out_%04d.root" % NUM)
-    #FOUT = os.path.join(OUT_DIR,"multimaskrcnn_out_04.root")
+    FOUT = os.path.join(OUT_DIR,"autoencoder_out_%04d.root" % NUM)
     tfile = ROOT.TFile.Open(FOUT,"RECREATE")
     tfile.cd()
     #print "OPEN %s"%FOUT
 
-    tree  = ROOT.TTree("maskrcnn_tree","")
+    tree  = ROOT.TTree("autoencoder_tree","")
     rd.init_tree(tree)
     rd.reset()
-
-
-    import MCNN_uboone
-
-    config = UbooneConfig()
-
-    #config.display()
-
-    config = InferenceConfig()
 
     #
     #initialize iomanager
     #
-
-    MODEL_DIR=OUT_DIR
-    model = modellib.MaskRCNN(mode="inference", model_dir=OUT_DIR,config=config)
-
-    #oiom = larcv.IOManager(larcv.IOManager.kWRITE)
-    #oiom.set_out_file("trash.root")
-    #oiom.initialize()
 
     iom  = larcv.IOManager(larcv.IOManager.kREAD)
     iom.add_in_file(IMAGE_FILE)
@@ -194,10 +164,9 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
                 
                 ###
                 weight_file = ""
-                exec("weight_file = cfg.weight_file_mrcnn_plane%d" % plane)
-
-                model.load_weights(weight_file, by_name=True)
-                
+                exec("weight_file = cfg.weight_file_autoencoder_plane%d" % plane)
+                AutoEncoder.load_weights(weight_file)
+                                
                 #nothing
                 #if pixel2d_vv.empty()==True: continue
 
@@ -210,74 +179,33 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
                 #nothing on this plane
                 #if pixel2d_pix.empty() == True: continue
 
-                rd.inferred[0] = 1
-                
                 img_pix = larcv.cluster_to_image2d(pixel2d_pix,cfg.xdim,cfg.ydim)
                 img_int = larcv.cluster_to_image2d(pixel2d_int,cfg.xdim,cfg.ydim)
 
                 img_pix_arr = image_modify(img_pix, cfg)
                 img_int_arr = image_modify(img_int, cfg)
 
-                #fig,ax=plt.subplots(1,1,figsize=(8,6))
-                #print img_pix_arr.shape
-                #ax.imshow(img_pix_arr[:,:,0])
-                #fig.savefig("%i_%i_%i_%i.pdf"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
-                
-                
                 #Detection
-                #from datetime import datetime
-                #a = datetime.now()
+                output_pix=AutoEncoder.predict(img_pix_arr.reshape(1,512,512,1))
+                output_int=AutoEncoder.predict(img_int_arr.reshape(1,512,512,1))
+
+                rd.inferred[0] = 1
+
+                '''
+                import matplotlib.pyplot as plt
+                fig,((ax1, ax2),(ax3, ax4))=plt.subplots(2,2,figsize=(20,10))
+                ax1.imshow(img_pix_arr[:,:,0])
+                ax2.imshow(output_pix.reshape(512,512))
+                ax3.imshow(img_int_arr[:,:,0])
+                ax4.imshow(output_int.reshape(512,512))
+                fig.savefig("%i_%i_%i_%i.pdf"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
+
+                print calc_loss(img_pix_arr, output_pix)
+                print calc_loss(img_int_arr, output_int)
+                '''
+                rd.autoencoder_score_pix=calc_loss(img_pix_arr, output_pix)
+                rd.autoencoder_score_int=calc_loss(img_int_arr, output_int)
                 
-                results = model.detect([img_pix_arr], verbose=0)
-
-                #b = datetime.now()
-                #c=b-a
-                #print 'using time of %i seconds'%c.seconds
-
-                r = results[0]
-                
-                for each in r['scores']:
-                    rd.scores_plane2.push_back(each)
-
-                for each in r['class_ids']:
-                    rd.class_ids_plane2.push_back(class_names[each])
-
-                for x in xrange(r['rois'].shape[0]):
-                    roi_int=ROOT.std.vector("int")(4,0)
-                    roi_int.clear()
-                    for roi_int32 in r['rois'][x]:
-                        roi_int.push_back(int(roi_int32))
-                    rd.rois_plane2.push_back(roi_int)
-
-                #print "found %i masks"%r['masks'].shape[-1]
-                for x in xrange(r['masks'].shape[-1]):
-                    this_mask=r['masks'][:,:,x]
-                    #print "this mask has sum of %i"%(np.sum(this_mask))
-                    #print "shape is ",this_mask.shape
-
-                    this_mask=this_mask.flatten()
-                    
-                    mask=ROOT.std.vector("bool")(cfg.xdim*cfg.ydim,False)
-
-                    #print mask.size()
-                    #print len(this_mask)
-                    
-                    for idx in xrange(cfg.xdim*cfg.ydim):
-                        #print idx
-                        mask[idx]=this_mask[idx]
-                    
-                    #mask=this_mask
-                    rd.masks_plane2_1d.push_back(mask)
-
-                    #Store images in 2D vector, not compatible with pandas, uproot etc.
-                    '''
-                    mask=ROOT.std.vector(ROOT.std.vector("bool"))(512, ROOT.std.vector("bool")(512, False))
-                    this_mask=r['masks'][:,:,x]
-                    for idx in xrange(this_mask.shape[0]):
-                        for idy in xrange(this_mask.shape[1]):
-                            mask[idx][idy]=this_mask[idx][idy]
-                    rd.masks_plane2_2d.push_back(mask)
-                    '''
             tree.Fill()
             rd.reset_vertex()
     tfile.cd()
