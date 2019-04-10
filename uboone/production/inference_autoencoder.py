@@ -48,6 +48,7 @@ def image_modify (img, cfg):
     img_arr = np.array(img.as_vector())
     img_arr = np.where(img_arr<cfg.adc_lo,         0,img_arr)
     img_arr = np.where(img_arr>cfg.adc_hi,cfg.adc_hi,img_arr)
+    img_arr = img_arr/cfg.adc_hi
     img_arr = img_arr.reshape(cfg.xdim,cfg.ydim, 1).astype(np.float32)
     
     return img_arr
@@ -81,6 +82,11 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
     cfg  = config_loader(CFG)
     assert cfg.batch == 1
 
+    plane=2
+    weight_file = ""
+    exec("weight_file = cfg.weight_file_autoencoder_plane%d" % plane)
+    AutoEncoder.load_weights(weight_file)
+
     rd = ROOTData()
 
     NUM = int(os.path.basename(VTX_FILE).split(".")[0].split("_")[-1])
@@ -104,6 +110,8 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
 
     for entry in xrange(iom.get_n_entries()):
 
+        if entry > 10: continue
+        
         iom.read_entry(entry)
 
         ev_pgr = iom.get_data(larcv.kProductPGraph,"inter_par")
@@ -112,9 +120,7 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
         ev_int = iom.get_data(larcv.kProductPixel2D,"inter_int_pixel")
         #ev_img = iom.get_data(larcv.kProductImage2D,"wire")
         
-        #print '========================>>>>>>>>>>>>>>>>>>>>'
-        #print 'run, subrun, event',ev_pix.run(),ev_pix.subrun(),ev_pix.event()
-
+        
         rd.run[0]    = int(ev_pix.run())
         rd.subrun[0] = int(ev_pix.subrun())
         rd.event[0]  = int(ev_pix.event())
@@ -163,10 +169,11 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
                 #else : y_2d = y_2d_plane_0
                 
                 ###
+                '''
                 weight_file = ""
                 exec("weight_file = cfg.weight_file_autoencoder_plane%d" % plane)
                 AutoEncoder.load_weights(weight_file)
-                                
+                '''
                 #nothing
                 #if pixel2d_vv.empty()==True: continue
 
@@ -191,20 +198,34 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
 
                 rd.inferred[0] = 1
 
-                '''
+
+                
+                print '========================>>>>>>>>>>>>>>>>>>>>'
+                print 'run, subrun, event, ix',ev_pix.run(),ev_pix.subrun(),ev_pix.event(), ix
+
+
+                print 'max is ', np.max(img_pix_arr)
+
+                pix_loss=calc_loss(img_pix_arr, output_pix)
+                int_loss=calc_loss(img_int_arr, output_int)
+                
+                print 'pix loss', pix_loss
+                print 'int loss', int_loss
+
+
                 import matplotlib.pyplot as plt
-                fig,((ax1, ax2),(ax3, ax4))=plt.subplots(2,2,figsize=(20,10))
+                fig,((ax1, ax2),(ax3, ax4))=plt.subplots(2,2,figsize=(16,10))
                 ax1.imshow(img_pix_arr[:,:,0])
+                ax1.set_title("pix_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, pix_loss))
                 ax2.imshow(output_pix.reshape(512,512))
                 ax3.imshow(img_int_arr[:,:,0])
+                ax1.set_title("int_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, int_loss))
                 ax4.imshow(output_int.reshape(512,512))
-                fig.savefig("%i_%i_%i_%i.pdf"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
+                fig.savefig("%i_%i_%i_%i"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
 
-                print calc_loss(img_pix_arr, output_pix)
-                print calc_loss(img_int_arr, output_int)
-                '''
-                rd.autoencoder_score_pix=calc_loss(img_pix_arr, output_pix)
-                rd.autoencoder_score_int=calc_loss(img_int_arr, output_int)
+                
+                rd.autoencoder_score_pix[0]=pix_loss
+                rd.autoencoder_score_int[0]=int_loss
                 
             tree.Fill()
             rd.reset_vertex()

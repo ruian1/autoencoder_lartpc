@@ -19,9 +19,11 @@ class ROOTData(object):
         
         self.inferred = array( 'i', [ kINVALID_INT ] )
 
-        self.autoencoder_score_center = ROOT.std.vector("float")(3,kINVALID_FLOAT)
-        self.autoencoder_score_pix = ROOT.std.vector("float")(3,kINVALID_FLOAT)
-        self.autoencoder_score_int = ROOT.std.vector("float")(3,kINVALID_FLOAT)
+        #self.autoencoder_score_center = ROOT.std.vector("float")(3,kINVALID_FLOAT)
+        #self.autoencoder_score_pix = ROOT.std.vector("float")(3,kINVALID_FLOAT)
+        #self.autoencoder_score_int = ROOT.std.vector("float")(3,kINVALID_FLOAT)
+        self.autoencoder_score_pix = array( 'f', [ kINVALID_FLOAT ] )
+        self.autoencoder_score_int = array( 'f', [ kINVALID_FLOAT ] )
                 
     def reset_event(self):
         self.run[0]     = kINVALID_INT
@@ -52,6 +54,6 @@ class ROOTData(object):
 
         tree.Branch("inferred"   , self.inferred  , "inferred/I")
 
-        tree.Branch("autoencoder_score", self.autoencoder_score_center, "autoencoder_score_center/F")
+        #tree.Branch("autoencoder_score", self.autoencoder_score_center, "autoencoder_score_center/F")
         tree.Branch("autoencoder_score", self.autoencoder_score_pix, "autoencoder_score_pix/F")
         tree.Branch("autoencoder_score", self.autoencoder_score_int, "autoencoder_score_int/F")
