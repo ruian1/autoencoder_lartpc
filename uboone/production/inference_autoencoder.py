@@ -110,8 +110,6 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
 
     for entry in xrange(iom.get_n_entries()):
 
-        if entry > 10: continue
-        
         iom.read_entry(entry)
 
         ev_pgr = iom.get_data(larcv.kProductPGraph,"inter_par")
@@ -221,7 +219,7 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
                 ax3.imshow(img_int_arr[:,:,0])
                 ax1.set_title("int_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, int_loss))
                 ax4.imshow(output_int.reshape(512,512))
-                fig.savefig("%i_%i_%i_%i"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
+                fig.savefig("%i_%i_%i_%i.pdf"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
 
                 
                 rd.autoencoder_score_pix[0]=pix_loss
