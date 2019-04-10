@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import os, sys, gc, shutil
 import pandas as pd
 import ROOT
@@ -211,7 +214,7 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
                 print 'int loss', int_loss
 
 
-                import matplotlib.pyplot as plt
+
                 fig,((ax1, ax2),(ax3, ax4))=plt.subplots(2,2,figsize=(16,10))
                 ax1.imshow(img_pix_arr[:,:,0])
                 ax1.set_title("pix_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, pix_loss))
