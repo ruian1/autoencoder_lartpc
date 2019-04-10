@@ -220,7 +220,7 @@ def main(IMAGE_FILE,VTX_FILE,OUT_DIR,CFG):
                 ax1.set_title("pix_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, pix_loss))
                 ax2.imshow(output_pix.reshape(512,512))
                 ax3.imshow(img_int_arr[:,:,0])
-                ax1.set_title("int_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, int_loss))
+                ax3.set_title("int_%i_%i_%i_%i_loss_%f"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix, int_loss))
                 ax4.imshow(output_int.reshape(512,512))
                 fig.savefig("%i_%i_%i_%i.pdf"%(ev_pix.run(),ev_pix.subrun(),ev_pix.event(),ix), bbox_inches='tight')
 
