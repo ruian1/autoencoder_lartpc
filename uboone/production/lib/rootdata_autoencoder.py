@@ -54,6 +54,6 @@ class ROOTData(object):
 
         tree.Branch("inferred"   , self.inferred  , "inferred/I")
 
-        #tree.Branch("autoencoder_score", self.autoencoder_score_center, "autoencoder_score_center/F")
-        tree.Branch("autoencoder_score", self.autoencoder_score_pix, "autoencoder_score_pix/F")
-        tree.Branch("autoencoder_score", self.autoencoder_score_int, "autoencoder_score_int/F")
+        #tree.Branch("autoencoder_score_center", self.autoencoder_score_center, "autoencoder_score_center/F")
+        tree.Branch("autoencoder_score_pix", self.autoencoder_score_pix, "autoencoder_score_pix/F")
+        tree.Branch("autoencoder_score_int", self.autoencoder_score_int, "autoencoder_score_int/F")
